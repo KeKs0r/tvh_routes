@@ -1,0 +1,23 @@
+{
+  "name": "tvh-project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "check-types": "^6.0.0",
+    "geolib": "^2.0.18",
+    "lodash": "^4.6.1",
+    "moment": "^2.12.0",
+    "pg": "^4.5.1"
+  }
+}
