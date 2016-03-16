@@ -7,6 +7,7 @@ var dateFormat = 'YYYY-MM-DD';
 
 var getActual = require('./Actual');
 var getFirstSimulation = require('./Simul1');
+var getSecondSimulation = require('./Simul2');
 var insertRoute = require('./lib/common').insertRoute;
 var helpers = require('./lib/helpers');
 
@@ -19,7 +20,6 @@ Async.auto({
             '   ORDER BY ride_date ASC',
             '   LIMIT 100 OFFSET 0',
             ';'
-
         ].join('\n');
         db.query(q, function (err, res) {
             if (err) {
@@ -42,8 +42,13 @@ Async.auto({
                 getFirstSimulation: function(finish){
                     getFirstSimulation(points, finish)
                 },
-                insertRoute: ['getActual', 'getFirstSimulation', function(cb, res){
-                    var allRoutes = res.getActual.concat(res.getFirstSimulation);
+                getSecondSimulation: function(finish){
+                    getSecondSimulation(points, finish)
+                },
+                insertRoute: ['getActual', 'getFirstSimulation', 'getSecondSimulation', function(cb, res){
+                    var allRoutes = res.getActual
+                        .concat(res.getFirstSimulation)
+                        .concat(res.getSecondSimulation);
                     helpers.logRoutes(allRoutes);
                     insertRoute(allRoutes, cb);
                 }]

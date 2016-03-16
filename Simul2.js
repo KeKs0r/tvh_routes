@@ -37,7 +37,7 @@ var getFirstSimulation = function (points, cb) {
             reverse: reverseRoute
         }, function (err, res) {
             logPoint(point, 'Simul 2 Finishing');
-            if(err){
+            if (err) {
                 return nextPoint(err);
             }
             nextPoint(null, [res.route, res.reverse]);
@@ -52,26 +52,24 @@ var getFirstSimulation = function (points, cb) {
 };
 
 
-
 var defaultDepots = [];
-var loadDefaultDepots = function(cb){
-    if(defaultDepots.length > 0){
+var loadDefaultDepots = function (cb) {
+    if (defaultDepots.length > 0) {
         cb(null, defaultDepots);
     }
     var q = [
         'SELECT',
         '   driver_emp_id, default_depot_id',
-        '   FROM warehouse.rental_transport_unit'
+        '   FROM warehouse.rental_transport_units'
     ].join('\n');
-    db.query(q, function(err,res) {
-        if(err){
+    db.query(q, function (err, res) {
+        if (err) {
             return cb(err);
         }
         defaultDepots = res;
         cb(null, res);
     })
 };
-
 
 
 var findDefaultDepot = function (point, cb) {
@@ -82,20 +80,20 @@ var findDefaultDepot = function (point, cb) {
         if (err) {
             return cb(err);
         }
-         var def = _.find(res.loadDefaultDepots, {driver_emp_id: point.driver_emp_id});
-        // Fallback if we can't find the default depot
-        if(!def){
-            def = _.find(res.loadDefaultDepots, {depot_id: 5});
+        var depot;
+        var def = _.find(res.loadDefaultDepots, {driver_emp_id: point.driver_emp_id});
+        if (def) {
+            depot = _.find(res.getDepots, {depot_id: def.default_depot_id});
         }
-        cb(null, def);
+        if(!depot){
+            if(def && def.default_depot_id){
+                console.warn('Could not find depot, although driver had a default_depot:'+def.default_depot_id);
+            }
+            depot = _.find(res.getDepots, {depot_id: "5"});
+        }
+        cb(null, depot);
     });
 };
-
-
-
-
-
-
 
 
 module.exports = getFirstSimulation;
