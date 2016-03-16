@@ -3,13 +3,13 @@ var Async = require('async');
 var Moment = require('moment');
 
 var db = require('./lib/db');
-var logPoint = require('./helpers').logPoint;
+var logPoint = require('./lib/helpers').logPoint;
 var getRoute = require('./lib/getRoute');
 var dateFormat = 'YYYY-MM-DD';
 
 
 var getFirstSimulation = require('./Simul1');
-var insertRoute = require('./common').insertRoute;
+var insertRoute = require('./lib/common').insertRoute;
 
 Async.auto({
     getRoutes: function (cb) {

@@ -2,7 +2,7 @@ var Async = require('async');
 var Moment = require('moment');
 var _ = require('lodash');
 
-var logPoint = require('./helpers').logPoint;
+var logPoint = require('./lib/helpers').logPoint;
 var geolib = require('geolib');
 var db = require('./lib/db');
 var getRoute = require('./lib/getRoute');
