@@ -12,7 +12,20 @@ var dateFormat = 'YYYY-MM-DD';
 
 Async.auto({
     getRoutes: function (cb) {
-        var q = 'SELECT * FROM warehouse.rental_transport_points ORDER BY ride_date ASC LIMIT 100 OFFSET 0;';
+        var q = [
+            'SELECT * FROM ',
+            '   warehouse.rental_transport_points p',
+            '   WHERE NOT EXISTS (',
+            '       SELECT 1 from',
+            '           warehouse.rental_transport_routes r',
+            '       WHERE',
+            '           p.ride_date = r.ride_date AND',
+            '           p.driver_emp_id = r.driver_emp_id AND',
+            '           p.ride_no = r.ride_no',
+            '    )',
+            'ORDER BY ride_date ASC;'
+
+        ].join('\n');
         db.query(q, function (err, res) {
             if (err) {
                 return cb(err)
@@ -43,11 +56,14 @@ Async.auto({
 
 
 
+var insertCounter = 0;
 var insertActual = function(points, cb) {
     points = _.sortBy(points, 'sequence_no');
     var first = _.first(points);
-    console.log(Moment(first.ride_date).format(dateFormat) + ' Driver:'+first.driver_emp_id+ ' #'+first.ride_no+ ' --> '+points.length);
+    var id = Moment(first.ride_date).format(dateFormat) + ' D:'+first.driver_emp_id+ ' R'+first.ride_no;
+    //console.log(id + '  --> '+points.length);
     Async.times(points.length, function(i, next){
+        //console.log(id + '#'+i);
         var startPoint = points[i];
         var endPoint = points[i + 1] ? points[i + 1] : startPoint; // in case there is only one point
         // the last point cannot be calculated to db
@@ -65,12 +81,19 @@ var insertActual = function(points, cb) {
                 };
                 next(null, route);
             });
+        } else {
+            // This causes empty array elements in result
+            next(null, null);
         }
     },function(err,routes){
         if(err){
             return cb(err);
         }
-        insertRouteDB(routes, cb);
+        // Remove the empty entries from
+        var cleaned = _.filter(routes, function(r) {
+            return r;
+        });
+        insertRouteDB(cleaned, cb);
     });
 };
 
