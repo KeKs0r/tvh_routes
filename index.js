@@ -3,29 +3,21 @@ var Async = require('async');
 var Moment = require('moment');
 
 var db = require('./lib/db');
-var logPoint = require('./lib/helpers').logPoint;
-var getRoute = require('./lib/getRoute');
 var dateFormat = 'YYYY-MM-DD';
 
-
+var getActual = require('./Actual');
 var getFirstSimulation = require('./Simul1');
 var insertRoute = require('./lib/common').insertRoute;
+var helpers = require('./lib/helpers');
 
 Async.auto({
     getRoutes: function (cb) {
         var q = [
             'SELECT * FROM ',
             '   warehouse.rental_transport_points p',
-            '   WHERE NOT EXISTS (',
-            '       SELECT 1 from',
-            '           warehouse.rental_transport_routes r',
-            '       WHERE',
-            '           p.ride_date = r.ride_date AND',
-            '           p.driver_emp_id = r.driver_emp_id AND',
-            '           p.ride_no = r.ride_no',
-            '    )',
+            '   WHERE processed_date IS NULL',
             '   ORDER BY ride_date ASC',
-            '   LIMIT 100',
+            '   LIMIT 100 OFFSET 0',
             ';'
 
         ].join('\n');
@@ -52,9 +44,13 @@ Async.auto({
                 },
                 insertRoute: ['getActual', 'getFirstSimulation', function(cb, res){
                     var allRoutes = res.getActual.concat(res.getFirstSimulation);
+                    helpers.logRoutes(allRoutes);
                     insertRoute(allRoutes, cb);
                 }]
-            }, nextRoute);
+            }, function(err,res){
+                // Ingore single errors. Just continue
+                nextRoute();
+            });
         },function(err,res){
             cb(err,res)
         })
@@ -72,45 +68,7 @@ Async.auto({
 });
 
 
-var getActual = function (points, cb) {
-    points = _.sortBy(points, 'sequence_no');
-    var first = _.first(points);
-    var id = Moment(first.ride_date).format(dateFormat) + ' D:' + first.driver_emp_id + ' R' + first.ride_no;
-    //console.log(id + '  --> '+points.length);
-    Async.times(points.length, function (i, next) {
-        //console.log(id + '#'+i);
-        var startPoint = points[i];
-        var endPoint = points[i + 1] ? points[i + 1] : startPoint; // in case there is only one point
-        // the last point cannot be calculated to db
-        if (i != points.length - 1 || points.length === 1) {
-            getRoute(startPoint, endPoint, function (err, calculatedRouteData) {
-                if (err) {
-                    return cb(err);
-                }
-                var route = {
-                    route: calculatedRouteData,
-                    startPoint: startPoint,
-                    endPoint: endPoint,
-                    sequenceNumber: i + 1,
-                    rideType: 'actual'
-                };
-                next(null, route);
-            });
-        } else {
-            // This causes empty array elements in result
-            next(null, null);
-        }
-    }, function (err, routes) {
-        if (err) {
-            return cb(err);
-        }
-        // Remove the empty entries from
-        var cleaned = _.filter(routes, function (r) {
-            return r;
-        });
-        cb(null, cleaned);
-    });
-};
+
 
 
 

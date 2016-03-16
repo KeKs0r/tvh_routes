@@ -1,9 +1,8 @@
 var Async = require('async');
-var Moment = require('moment');
 var _ = require('lodash');
 
 var logPoint = require('./lib/helpers').logPoint;
-var geolib = require('geolib');
+var db = require('./lib/db');
 var getRoute = require('./lib/getRoute');
 var findAllDepots = require('./lib/common').findAllDepots;
 var reverseRoute = require('./lib/common').reverseRoute;
@@ -13,14 +12,14 @@ var getFirstSimulation = function (points, cb) {
     points = _.sortBy(points, 'sequence_no');
     Async.mapSeries(points, function (point, nextPoint) {
 
-        logPoint(point, 'Simul 1 Starting');
+        logPoint(point, 'Simul 2 Starting');
         Async.auto({
-            getClosest: function (cb) {
-                findClosestDepot(point, cb)
+            getDefault: function (cb) {
+                findDefaultDepot(point, cb)
             },
-            route: ['getClosest', function (cb, res) {
+            route: ['getDefault', function (cb, res) {
                 var startPoint = point;
-                var endPoint = res.getClosest;
+                var endPoint = res.getDefault;
                 getRoute(startPoint, endPoint, function (err, calculatedRouteData) {
                     if (err) {
                         return cb(err);
@@ -30,14 +29,14 @@ var getFirstSimulation = function (points, cb) {
                         startPoint: startPoint,
                         endPoint: endPoint,
                         sequenceNumber: point.sequence_no * 2 - 1,
-                        rideType: 'Simul 1'
+                        rideType: 'Simul 2'
                     };
                     cb(null, route);
                 });
             }],
             reverse: reverseRoute
         }, function (err, res) {
-            logPoint(point, 'Simul 1 Finishing');
+            logPoint(point, 'Simul 2 Finishing');
             if(err){
                 return nextPoint(err);
             }
@@ -53,26 +52,46 @@ var getFirstSimulation = function (points, cb) {
 };
 
 
-var findClosestDepot = function (point, cb) {
+
+var defaultDepots = [];
+var loadDefaultDepots = function(cb){
+    if(defaultDepots.length > 0){
+        cb(null, defaultDepots);
+    }
+    var q = [
+        'SELECT',
+        '   driver_emp_id, default_depot_id',
+        '   FROM warehouse.rental_transport_unit'
+    ].join('\n');
+    db.query(q, function(err,res) {
+        if(err){
+            return cb(err);
+        }
+        defaultDepots = res;
+        cb(null, res);
+    })
+};
+
+
+
+var findDefaultDepot = function (point, cb) {
     Async.auto({
         getDepots: findAllDepots,
-        mapDistance: ['getDepots', function (cb, res) {
-            var depots = res.getDepots;
-            var withDistance = _.map(depots, function (depot) {
-                depot.distance = geolib.getDistance(point, depot);
-                return depot;
-            });
-            cb(null, withDistance);
-        }]
+        loadDefaultDepots: loadDefaultDepots
     }, function (err, res) {
         if (err) {
             return cb(err);
         }
-        var depots = res.mapDistance;
-        var closest = _.first(_.sortBy(depots, 'distance'));
-        cb(null, closest);
+         var def = _.find(res.loadDefaultDepots, {driver_emp_id: point.driver_emp_id});
+        // Fallback if we can't find the default depot
+        if(!def){
+            def = _.find(res.loadDefaultDepots, {depot_id: 5});
+        }
+        cb(null, def);
     });
 };
+
+
 
 
 
