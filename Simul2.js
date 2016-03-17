@@ -8,7 +8,7 @@ var findAllDepots = require('./lib/common').findAllDepots;
 var reverseRoute = require('./lib/common').reverseRoute;
 
 
-var getFirstSimulation = function (points, cb) {
+var getSecondSimulation = function (points, cb) {
     points = _.sortBy(points, 'sequence_no');
     Async.mapSeries(points, function (point, nextPoint) {
 
@@ -96,4 +96,4 @@ var findDefaultDepot = function (point, cb) {
 };
 
 
-module.exports = getFirstSimulation;
+module.exports = getSecondSimulation;

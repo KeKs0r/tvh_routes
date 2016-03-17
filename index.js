@@ -9,7 +9,9 @@ var getActual = require('./Actual');
 var getFirstSimulation = require('./Simul1');
 var getSecondSimulation = require('./Simul2');
 var insertRoute = require('./lib/common').insertRoute;
+var updatePoint = require('./lib/common').updatePoint;
 var helpers = require('./lib/helpers');
+var getCoordinates = require('./lib/getCoordinates');
 
 Async.auto({
     getRoutes: function (cb) {
@@ -33,31 +35,55 @@ Async.auto({
             cb(null, grouped);
         });
     },
-    processRoutes:['getRoutes', function (cb, res) {
-        Async.eachLimit(res.getRoutes, 1, function(points, nextRoute){
+    processRoutes: ['getRoutes', function (cb, res) {
+        Async.eachLimit(res.getRoutes, 20, function (points, nextRoute) {
             Async.auto({
-                getActual: function(finish){
+                points: function (finish) {
+                    Async.map(points, function (point, next) {
+                        if (_.isEmpty(point.longitude) || _.isEmpty(point.latitude)) {
+                            getCoordinates(point, function (coords) {
+                                point.longitude = coords.longitude;
+                                point.latitude = coords.latitude;
+                                point.dirty = true;
+                            });
+                        } else {
+                            next(null, point);
+                        }
+                    },finish);
+                },
+                updatePoints: ['points', function (cb, res) {
+                    var points = res.points;
+                    var dirtyPoints = _.filter(points, 'dirty');
+                    Async.each(dirtyPoints, updatePoint, cb);
+                }],
+                getActual: ['points', function (finish, res) {
+                    var points = res.points;
                     getActual(points, finish)
-                },
-                getFirstSimulation: function(finish){
+                }],
+                getFirstSimulation: ['points', function (finish, res) {
+                    var points = res.points;
                     getFirstSimulation(points, finish)
-                },
-                getSecondSimulation: function(finish){
+                }],
+                getSecondSimulation: ['points', function (finish, res) {
+                    var points = res.points;
                     getSecondSimulation(points, finish)
-                },
-                insertRoute: ['getActual', 'getFirstSimulation', 'getSecondSimulation', function(cb, res){
+                }],
+                insertRoute: ['getActual', 'getFirstSimulation', 'getSecondSimulation', function (cb, res) {
                     var allRoutes = res.getActual
                         .concat(res.getFirstSimulation)
                         .concat(res.getSecondSimulation);
                     helpers.logRoutes(allRoutes);
                     insertRoute(allRoutes, cb);
                 }]
-            }, function(err,res){
+            }, function (err, res) {
                 // Ingore single errors. Just continue
+                if(err){
+                    console.error(err);
+                }
                 nextRoute();
             });
-        },function(err,res){
-            cb(err,res)
+        }, function (err, res) {
+            cb(err, res)
         })
     }]
 }, function (err, res) {
