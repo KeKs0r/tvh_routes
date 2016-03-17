@@ -9,7 +9,6 @@ var getActual =  function (points, cb) {
     var first = _.first(points);
     helpers.logPoint(first, 'Actual Starting');
     Async.times(points.length, function (i, next) {
-        //console.log(id + '#'+i);
         var startPoint = points[i];
         var endPoint = points[i + 1] ? points[i + 1] : startPoint; // in case there is only one point
         // the last point cannot be calculated to db

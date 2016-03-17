@@ -7,6 +7,7 @@ var geolib = require('geolib');
 var getRoute = require('./lib/getRoute');
 var findAllDepots = require('./lib/common').findAllDepots;
 var reverseRoute = require('./lib/common').reverseRoute;
+var helpers = require('./lib/helpers');
 
 
 var getFirstSimulation = function (points, cb) {

@@ -13,9 +13,12 @@ var insertRoute = require('./lib/common').insertRoute;
 var updatePoint = require('./lib/common').updatePoint;
 var helpers = require('./lib/helpers');
 var getCoordinates = require('./lib/getCoordinates');
-
 var parallelCount = (helpers.production) ? 20 : 1;
+var logger = require('./lib/logger');
 
+
+
+var uniqueKeys = [];
 Async.auto({
     getRoutes: function (cb) {
         var q = [
@@ -23,23 +26,32 @@ Async.auto({
             '   warehouse.rental_transport_points p',
             '   WHERE processed_date IS NULL',
             '   ORDER BY ride_date ASC',
-            '   LIMIT 100 OFFSET 0',
-            ';'
-        ].join('\n');
-        db.query(q, function (err, res) {
+        ];
+        if(!helpers.production) {
+            q.push('   LIMIT 500 OFFSET 0');
+        }
+        q.push(';');
+        db.query(q.join('\n'), function (err, res) {
             if (err) {
-                return cb(err)
+                return cb()
             }
             var grouped = _.groupBy(res, function (ride) {
                 var date = new Moment(ride.ride_date);
                 return [ride.ride_no, ride.driver_emp_id, date.format(dateFormat)].join('_');
             });
-            console.log('Amount of Routes:' + _.size(grouped) + ' / Points:' + res.length);
+            logger.info('Amount of Routes:' + _.size(grouped) + ' / Points:' + res.length);
             cb(null, grouped);
         });
     },
     processRoutes: ['getRoutes', function (cb, res) {
-        Async.eachLimit(res.getRoutes, parallelCount, function (points, nextRoute) {
+        var dbRoutes = res.getRoutes;
+        Async.eachLimit(dbRoutes, parallelCount, function (points, nextRoute) {
+            var needle = {
+                ride_no: 1,
+                driver_emp_id: 6429,
+
+            }
+
             Async.auto({
                 points: function (finish) {
                     Async.map(points, function (point, next) {
@@ -88,9 +100,9 @@ Async.auto({
                     insertRoute(allRoutes, cb);
                 }]
             }, function (err, res) {
-                // Ingore single errors. Just continue
+                // Only log error but continue with program
                 if(err){
-                    console.error(err);
+                    logger.error(err);
                 }
                 nextRoute();
             });
@@ -100,11 +112,11 @@ Async.auto({
     }]
 }, function (err, res) {
     if (err) {
-        console.log('Something failed');
-        console.error(err);
+        logger.info('Something failed');
+        logger.error(err);
         process.exit(1);
     } else {
-        console.log('Super Succesful');
+        logger.info('Super Succesful');
         process.exit(0)
     }
 
