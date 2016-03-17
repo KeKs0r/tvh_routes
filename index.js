@@ -8,6 +8,7 @@ var dateFormat = 'YYYY-MM-DD';
 var getActual = require('./Actual');
 var getFirstSimulation = require('./Simul1');
 var getSecondSimulation = require('./Simul2');
+var getThirdSimulation = require('./Simul3');
 var insertRoute = require('./lib/common').insertRoute;
 var updatePoint = require('./lib/common').updatePoint;
 var helpers = require('./lib/helpers');
@@ -41,10 +42,14 @@ Async.auto({
                 points: function (finish) {
                     Async.map(points, function (point, next) {
                         if (_.isEmpty(point.longitude) || _.isEmpty(point.latitude)) {
-                            getCoordinates(point, function (coords) {
+                            getCoordinates(point, function (err, coords) {
+                                if(err){
+                                    next(err);
+                                }
                                 point.longitude = coords.longitude;
                                 point.latitude = coords.latitude;
                                 point.dirty = true;
+                                next(null, point)
                             });
                         } else {
                             next(null, point);
@@ -68,10 +73,15 @@ Async.auto({
                     var points = res.points;
                     getSecondSimulation(points, finish)
                 }],
-                insertRoute: ['getActual', 'getFirstSimulation', 'getSecondSimulation', function (cb, res) {
+                getThirdSimulation: ['points', function (finish, res) {
+                    var points = res.points;
+                    getThirdSimulation(points, finish)
+                }],
+                insertRoute: ['getActual', 'getFirstSimulation', 'getSecondSimulation', 'getThirdSimulation', function (cb, res) {
                     var allRoutes = res.getActual
                         .concat(res.getFirstSimulation)
-                        .concat(res.getSecondSimulation);
+                        .concat(res.getSecondSimulation)
+                        .concat(res.getThirdSimulation);
                     helpers.logRoutes(allRoutes);
                     insertRoute(allRoutes, cb);
                 }]
