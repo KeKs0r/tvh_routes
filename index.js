@@ -17,15 +17,13 @@ var parallelCount = (helpers.production) ? 20 : 1;
 var logger = require('./lib/logger');
 
 
-
-var uniqueKeys = [];
 Async.auto({
     getRoutes: function (cb) {
         var q = [
             'SELECT * FROM ',
             '   warehouse.rental_transport_points p',
             '   WHERE processed_date IS NULL',
-            '   ORDER BY ride_date ASC',
+            '   ORDER BY ride_date ASC'
         ];
         if(!helpers.production) {
             q.push('   LIMIT 500 OFFSET 0');
@@ -46,12 +44,7 @@ Async.auto({
     processRoutes: ['getRoutes', function (cb, res) {
         var dbRoutes = res.getRoutes;
         Async.eachLimit(dbRoutes, parallelCount, function (points, nextRoute) {
-            var needle = {
-                ride_no: 1,
-                driver_emp_id: 6429,
-
-            }
-
+            // Process single Route
             Async.auto({
                 points: function (finish) {
                     Async.map(points, function (point, next) {
