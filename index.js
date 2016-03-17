@@ -14,6 +14,8 @@ var updatePoint = require('./lib/common').updatePoint;
 var helpers = require('./lib/helpers');
 var getCoordinates = require('./lib/getCoordinates');
 
+var parallelCount = (helpers.production) ? 20 : 1;
+
 Async.auto({
     getRoutes: function (cb) {
         var q = [
@@ -37,7 +39,7 @@ Async.auto({
         });
     },
     processRoutes: ['getRoutes', function (cb, res) {
-        Async.eachLimit(res.getRoutes, 1, function (points, nextRoute) {
+        Async.eachLimit(res.getRoutes, parallelCount, function (points, nextRoute) {
             Async.auto({
                 points: function (finish) {
                     Async.map(points, function (point, next) {
