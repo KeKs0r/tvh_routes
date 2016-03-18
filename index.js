@@ -17,6 +17,8 @@ var parallelCount = (helpers.production) ? 20 : 1;
 var logger = require('./lib/logger');
 
 
+var totalRoutes = 0;
+
 Async.auto({
     getRoutes: function (cb) {
         var q = [
@@ -38,11 +40,13 @@ Async.auto({
                 return [ride.ride_no, ride.driver_emp_id, date.format(dateFormat)].join('_');
             });
             logger.info('Amount of Routes:' + _.size(grouped) + ' / Points:' + res.length);
+            totalRoutes = _.size(grouped);
             cb(null, grouped);
         });
     },
     processRoutes: ['getRoutes', function (cb, res) {
         var dbRoutes = res.getRoutes;
+        var currentProgress = 0;
         Async.eachLimit(dbRoutes, parallelCount, function (points, nextRoute) {
             // Process single Route
             Async.auto({
@@ -93,6 +97,12 @@ Async.auto({
                     insertRoute(allRoutes, cb);
                 }]
             }, function (err, res) {
+                // Progress
+                currentProgress++;
+                if(currentProgress % 5000 === 0){
+                    logger.info(currentProgress + ' / ' + totalRoutes + ' (' + (Math.floor(currentProgress/totalRoutes * 100)) + '%)');
+                }
+
                 // Only log error but continue with program
                 if(err){
                     logger.error(err);
